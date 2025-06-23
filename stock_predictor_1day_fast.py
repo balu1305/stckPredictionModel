@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,6 +12,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import matplotlib.dates as mdates
 import warnings
+from flask import Flask, request, jsonify, send_file
+
 warnings.filterwarnings('ignore')
 
 plt.style.use('ggplot')
@@ -27,18 +28,11 @@ class StockPredictor:
         self.future_predictions = None
         self.future_dates = None
 
-    def get_user_input(self):
-        print("\n" + "="*60)
-        print("AI STOCK PRICE PREDICTION SYSTEM".center(60))
-        print("="*60 + "\n")
-
-        self.ticker = input("Enter stock ticker (e.g., AAPL, MSFT, TCS.NS): ").strip().upper()
+    def get_user_input(self, ticker):
+        self.ticker = ticker
 
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=365)
-
-        print(f"\nUsing fixed 1-year historical range: {start_date.date()} to {end_date.date()}")
-        print(f"Forecasting for next {self.prediction_days} day only (forced setting).")
 
         return start_date, end_date
 
@@ -127,8 +121,8 @@ class StockPredictor:
         fig.show()
 
         # Export the plot to an HTML file
-        # fig.write_html("stock_analysis.html")
-        # print("Visualization saved as 'stock_analysis.html'. Open this file in a browser to view the plot.")
+        fig.write_html("stock_analysis.html")
+        print("Visualization saved as 'stock_analysis.html'. Open this file in a browser to view the plot.")
 
     def run(self):
         try:
@@ -143,6 +137,54 @@ class StockPredictor:
         except Exception as e:
             print(f"\nError: {str(e)}\nPlease check your inputs and try again.")
 
+app = Flask(__name__)
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        ticker = data.get('ticker')
+
+        predictor = StockPredictor()
+        start_date, end_date = predictor.get_user_input(ticker)
+        predictor.fetch_live_data(start_date, end_date)
+        predictor.add_technical_indicators()
+        X_train, X_test, y_train, y_test = predictor.prepare_data()
+        predictor.train_model(X_train, y_train)
+        y_test_actual, y_pred_actual = predictor.evaluate_model(X_test, y_test)
+        predictor.predict_future(X_test[-1])
+        predictor.visualize_results(y_test_actual, y_pred_actual)
+
+        # Serve the generated HTML file
+        return send_file("stock_analysis.html", as_attachment=True)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/predict_value', methods=['POST'])
+def predict_value():
+    try:
+        data = request.json
+        ticker = data.get('ticker')
+
+        predictor = StockPredictor()
+        start_date, end_date = predictor.get_user_input(ticker)
+        predictor.fetch_live_data(start_date, end_date)
+        predictor.add_technical_indicators()
+        X_train, X_test, y_train, y_test = predictor.prepare_data()
+        predictor.train_model(X_train, y_train)
+        y_test_actual, y_pred_actual = predictor.evaluate_model(X_test, y_test)
+        future_predictions = predictor.predict_future(X_test[-1])
+
+        # Extract the prediction value (green dot)
+        prediction_value = str(future_predictions['Close'].iloc[0])
+
+        return jsonify({"prediction_value": prediction_value})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/test', methods=['GET'])
+def test():
+    return "This is a test", 200
+
 if __name__ == "__main__":
-    predictor = StockPredictor()
-    predictor.run()
+    app.run(debug=True)
