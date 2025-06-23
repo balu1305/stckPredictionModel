@@ -124,11 +124,11 @@ class StockPredictor:
         fig.add_trace(go.Scatter(x=self.future_dates[:1], y=self.future_predictions['Close'][:1], line=dict(color='green', width=2, dash='dot'), name='1-day Forecast'), row=2, col=1)
 
         fig.update_layout(title=f'{self.ticker} Stock Analysis & 1-Day Prediction', height=850, xaxis_rangeslider_visible=False, showlegend=True, yaxis2=dict(overlaying='y', side='right', showgrid=False))
-        # fig.show()
-        
+        fig.show()
+
         # Export the plot to an HTML file
-        fig.write_html("stock_analysis.html")
-        print("Visualization saved as 'stock_analysis.html'. Open this file in a browser to view the plot.")
+        # fig.write_html("stock_analysis.html")
+        # print("Visualization saved as 'stock_analysis.html'. Open this file in a browser to view the plot.")
 
     def run(self):
         try:
